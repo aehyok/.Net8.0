@@ -108,8 +108,8 @@ namespace sun.Core.Domains
     /// </summary>
     public enum Gender
     {
-        未知 = 0,
         男 = 1,
-        女 = 2
+        女 = 2,
+        未知 = 3
     }
 }

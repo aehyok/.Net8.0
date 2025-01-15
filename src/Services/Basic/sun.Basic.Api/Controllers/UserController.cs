@@ -90,19 +90,40 @@ namespace sun.Basic.Api.Controllers
                 }
             }
 
-            var query = (from u in userService.GetExpandable().Where(filter)
-                        join ur in userRoleService.GetExpandable().Where(userRoleFilter) on u.Id equals ur.UserId
-                        select new UserDto
-                        {
-                            Id = u.Id,
-                            UserName = u.UserName,
-                            Mobile = u.Mobile,
-                            NickName = u.NickName,
-                            RealName = u.RealName,
-                            IsEnable = u.IsEnable,
-                        })
+            IQueryable<UserDto> query;
+            if (model.RegionId.HasValue && model.RoleId != 0)
+            {
+                query = (from u in userService.GetExpandable().Where(filter)
+                         join ur in userRoleService.GetExpandable().Where(userRoleFilter) on u.Id equals ur.UserId
+                         select new UserDto
+                         {
+                             Id = u.Id,
+                             UserName = u.UserName,
+                             Mobile = u.Mobile,
+                             NickName = u.NickName,
+                             RealName = u.RealName,
+                             IsEnable = u.IsEnable,
+                         })
                         .Distinct()
                         .OrderByDescending(a => a.Id);
+            } 
+            else
+            {
+                query = (from u in userService.GetExpandable().Where(filter)
+                         select new UserDto
+                         {
+                             Id = u.Id,
+                             UserName = u.UserName,
+                             Mobile = u.Mobile,
+                             NickName = u.NickName,
+                             RealName = u.RealName,
+                             IsEnable = u.IsEnable,
+                             Gender = u.Gender
+                         })
+                        .Distinct()
+                        .OrderByDescending(a => a.Id);
+            }
+
 
             var list = await query.ToPagedListAsync(model.Page, model.Limit);
 
@@ -137,24 +158,27 @@ namespace sun.Basic.Api.Controllers
                 throw new ErrorCodeException(-1, "账号不能为空");
             if (model.Mobile.IsNullOrEmpty())
                 throw new ErrorCodeException(-1, "手机号码不能为空");
-            if (model.UserRoles.IsNull())
-                throw new ErrorCodeException(-1, "请为用户选择角色");
+            //if (model.UserRoles.IsNull())
+            //    throw new ErrorCodeException(-1, "请为用户选择角色");
 
             var entity = this.Mapper.Map<User>(model);
 
-            var roles = new List<UserRole>();
+            if (model.UserRoles != null && model.UserRoles.Count > 0)
+            {
+                var roles = new List<UserRole>();
 
-            model.UserRoles.ForEach((item => 
-            { 
-                roles.Add(new UserRole
+                model.UserRoles.ForEach((item =>
                 {
-                    RoleId = item.RoleId,
-                    UserId = entity.Id,
-                    RegionId = item.RegionId
-                });
-            }));
+                    roles.Add(new UserRole
+                    {
+                        RoleId = item.RoleId,
+                        UserId = entity.Id,
+                        RegionId = item.RegionId
+                    });
+                }));
 
-            await userRoleService.InsertAsync(roles);
+                await userRoleService.InsertAsync(roles);
+            }
 
             //entity.UserRoles = model.Roles.Select(a => new UserRole
             //{
